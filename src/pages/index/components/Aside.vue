@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref, defineProps, defineEmits } from 'vue';
+import { ref, defineProps, defineEmits } from 'vue';
 
 const scriptsList = ref([]);
 
@@ -8,6 +8,11 @@ const emit = defineEmits(['scriptSelected']);
 const handleClickScript = (script) => {
     console.log('点击脚本', script);
     emit('scriptSelected', script);
+};
+
+const handleDeleteScript = (script) => {
+    console.log('删除脚本', script);
+    scriptsList.value = scriptsList.value.filter((item) => item.id !== script.id);
 };
 
 
@@ -20,22 +25,6 @@ const createScript = () => {
 };
 
 
-const handleKeydown = (event) => {
-    if (event.key == 'F11') {
-        event.preventDefault();
-        createScript();
-    }
-};
-
-
-onMounted(() => {
-    window.addEventListener('keydown', handleKeydown);
-});
-
-
-onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeydown);
-});
 </script>
 <template>
     <el-card style="max-width: 480px">
