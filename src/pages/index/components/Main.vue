@@ -4,6 +4,7 @@ import VuePictureCropper, { cropper } from 'vue-picture-cropper'
 
 import { invoke } from '@tauri-apps/api';
 import { listen } from '@tauri-apps/api/event';
+import { tr } from 'element-plus/es/locales.mjs';
 const props = defineProps({
     selectedScript: Object,
 });
@@ -35,6 +36,7 @@ onMounted(() => {
             ...event.payload,
             id: nextId,
             nextStep: 'step' + (nextId + 1),
+            type: 'sequence'
         }
         // eventCardList.value.push(newItem);
         eventCardDict.value['step' + nextId] = newItem;
@@ -44,15 +46,21 @@ onMounted(() => {
 });
 
 
-const currentStep = ref(1);
 
 const eventCardDict = ref({});
 const displayedSteps = computed(() => {
     let steps = [];
-    let i = 1;
-    while (eventCardDict.value[`step${i}`]) {
-        steps.push(eventCardDict.value[`step${i}`]);
-        i++;
+    let nextStepKey = 'step1';
+    let stopLoop = false;
+    while (!stopLoop) {
+        if (eventCardDict.value[nextStepKey] === undefined) {
+            stopLoop = true;
+        } else {
+            if (eventCardDict.value[nextStepKey].type === 'sequence') {
+                steps.push(eventCardDict.value[nextStepKey]);
+                nextStepKey = eventCardDict.value[nextStepKey].nextStep;
+            }
+        }
     }
     console.log('显示的步骤', steps);
     return steps;
@@ -62,10 +70,6 @@ const displayedSteps = computed(() => {
 onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown);
 });
-
-// 事件卡片
-// const eventCardList = ref([
-// ]);
 
 
 const conditionCardList = ref([
@@ -81,6 +85,7 @@ const conditionCardList = ref([
 ]);
 
 const radio1 = ref('1')
+const radioCondition = ref('1')
 
 // 裁剪
 const isShowModal = ref(false);
@@ -95,6 +100,18 @@ const modifyImage = (eventCard) => {
     isShowModal.value = true;
     console.log(handlingImage.value);
 };
+
+const isShowConditionModal = ref(false);
+const conditionControl = (eventCard) => {
+    console.log('条件控制', eventCard);
+    isShowConditionModal.value = true;
+};
+
+const conditionImageSelect = (conditionCard) => {
+    console.log('确认图片', conditionCard);
+    isShowConditionModal.value = false;
+};
+
 
 const clearCropper = () => {
     cropper.clear();
@@ -134,7 +151,12 @@ const getCropperDataURL = () => {
                     </el-row>
                     <el-row :span="12">
                         <el-col :span="12">
-                            <el-button @click="modifyImage(eventCard)">修改</el-button>
+                            <el-row :span="12">
+                                <el-button @click="modifyImage(eventCard)" size="small">修改</el-button>
+                            </el-row>
+                            <el-row :span="12">
+                                <el-button @click="conditionControl(eventCard)" size="small">条件控制</el-button>
+                            </el-row>
                         </el-col>
                         <el-col :span="12">
                             <el-row :span="12" class="coordinate">
@@ -153,13 +175,6 @@ const getCropperDataURL = () => {
         </div>
 
 
-        <div class="conditionCards">
-            <div v-for="conditionCard in conditionCardList" :key="conditionCard.id" class="conditionCard">
-                <div class="conditionImageDiv">
-                    <img :src="conditionCard.image" alt="" class="conditionImage" />
-                </div>
-            </div>
-        </div>
         <el-dialog v-model="isShowModal" title="图片裁剪" width="500" :before-close="handleClose">
             <el-row :span="5">
                 <el-col :span="5">
@@ -186,6 +201,22 @@ const getCropperDataURL = () => {
                     dragMode: 'crop',
                 }" @ready="ready" />
             </el-row>
+        </el-dialog>
+
+        <el-dialog v-model="isShowConditionModal" title="条件控制" width="500" :before-close="handleClose">
+            <el-radio-group v-model="radioCondition" class="ml-4">
+                <el-radio value="1" size="large">顺序执行</el-radio>
+                <el-radio value="2" size="large">条件判断</el-radio>
+                <el-radio value="3" size="large">循环</el-radio>
+            </el-radio-group>
+            <div class="conditionCards">
+                <div v-for="conditionCard in conditionCardList" :key="conditionCard.id" class="conditionCard">
+                    <div class="conditionImageDiv">
+                        <img :src="conditionCard.image" alt="" class="conditionImage" />
+                    </div>
+                    <button @click="conditionImageSelect(conditionCard)">确认图片</button>
+                </div>
+            </div>
         </el-dialog>
     </div>
 
