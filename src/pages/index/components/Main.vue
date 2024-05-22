@@ -1,6 +1,9 @@
 <script setup>
 import { onMounted, onUnmounted, defineProps, ref } from 'vue';
+import VuePictureCropper, { cropper } from 'vue-picture-cropper'
 
+import { invoke } from '@tauri-apps/api';
+import { listen } from '@tauri-apps/api/event';
 const props = defineProps({
     selectedScript: Object,
 });
@@ -11,13 +14,30 @@ const handleKeydown = (event) => {
     }
 };
 
+const isRecording = ref(false);
 async function startRecord() {
     console.log('开始录制');
+    isRecording.value = true;
+    await invoke('start_recording');
 }
 
+async function stopRecord() {
+    console.log('结束录制');
+    isRecording.value = false;
+    await invoke('stop_recording');
+}
 
+let nextId = 1;
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
+    listen('button-press', (event) => {
+        console.log('录制事件', event.payload);
+        const newItem = {
+            ...event.payload,
+            id: nextId++,
+        }
+        eventCardList.value.push(newItem);
+    });
 });
 
 
@@ -25,81 +45,185 @@ onUnmounted(() => {
     window.removeEventListener('keydown', handleKeydown);
 });
 
-// 事件卡片(模拟两个)
+// 事件卡片
 const eventCardList = ref([
+]);
+
+const conditionCardList = ref([
     {
         id: 1,
-        type: 'click',
-        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANIAAAATCAYAAADlLVNTAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAALPSURBVGhD7Zu7jtpAFIb/5EWIgly4MK+AFIS0DS6hpkgTiYImDZRU21Ag0ayEa1rTIBkheAUailUi/CTOHHvGDLYxNydmo/NJ9s7tnBnDnItndz+tVqug0WiAYZj7+Sx/MgzzAGxIDFMAbEgMUwBsSAxTAGxIDFMAz2FIvoNOrQPHl/VMthheHJNHnvy9ukmuhlp83bs+0jMUd1XW9eh9zDNA33WSpzAkf72EYRtYru+2khIx0V/ssNuJa2Jg3Lpn09cx2o3EPYu8PqYsksb0BIbkY7000Bw1YSzXoqajefyhJ9sIH07nGAk6sfuW3twZxn3DcFdTew8u9mKj6+OJc33a3NdGmnoTtizmyftOR7Yno1DWWlRfOFBwTq8cpz376XMyRUOfcQz9QrZUDrOgPdiExc3ACmQxhOrt2UFVAstqB6p6ZBMMrIG4q7IVWEpJKKP3ZckT6b7U3O1ZkBY9lTvM2vG48/L6ehW6nuRaTuv5es89O1MkFn3O2kWUHpG2b2MYzShxqTdtuJ5KjLbwXBMv3ypR9cTbC7bK85IHf8fv2PmKVOu7TIRCGb3vWjLm3i+RnXlG0YPW0hobmMy7qOTKf0HVdNGLQuWNXFpXEc/O3AKl9ETJhkQbA3B7MlXpUcUTrRcgI5pWsaD3kt3k1MD+Odo70lXvMhV05zssqlPxzHyI8JFRRkSUa0hbD649kZswuia2iygokefeHw8gaGxUijC+ii0pSLaLCKFkfGcK13yBcuDXU0fTTsx9k57L8pXuK/rmrRHj0XUxRaEbEVGqIW1FOLJlWqc4pnfCc7/2IfKmKFp5OEYeSlvcXro9xITx66dMtYD+K6VaRLQJ04cNRLqvPprAUHP33jU913FeXh0WtDA2fqCbUpq3zsfXxTxO0oiI/+yvv2mTTlFdzDM2KMP8PZ7g+JthPj78/0gMUwAckRimANiQGOZhgD+sQ0J1Ryb0PwAAAABJRU5ErkJggg==',
-        params:
-        {
-            name: '坐标',
-            value: '100, 200',
-        },
+        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANEAAAAUCAYAAAATH9joAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAK7SURBVHhe7Zu7juIwFIb/3RdhNaMUFMkrRFop0jSkDDXFlhQ020BJNQ1FJJqRSD1taJAiIfIKNBSjWZEnyeYkdmIgXKNZL+h8ksGX2D4k/n1sA9/SDDAMczPfxTvDMDfCImKYhrCIGKYhLCKGaQiLiGEaoldESYCu1UWQiHQtMUZnrznFqfoN2o5HsCxLBNlGU1uZ/xl61nVoFVGyXMBwDSyWdzbqSPz9Dwzma6zXFN7Ra4ky5qGpE5JGESVYLgw4YwfGYpmlVGhGF7P8KBJ5RIKgK2d/C91yyhceIKi8wyiW+X2E2GDSUa8njpUpfZ/0KgaejglnWdlRtXut7RLFnt0CRhP0LHagL1u1sJ2l3nCVR1dDMxXRHEp7s61MpKbppTJZsUqH5jB7lXEzNWUjeR21rK4+cVh20Lc3S+uqbmde1seu3UV7x+xQudR2Sso+tunMO/Y5mH8BPW81SLR5ovhtAsOx87jtuAgjOcvGiMI2Xn6Kad524BaxgnIvQl7kA39KT9HG4FfRXlFHLbuUmr43C9StNlu992wZ5wP9zJZuoHjSE3ZcbTvZA4TUh9XBZLPB5za/itEMLeMlmkSkDo4s9CkRZblnoEE4fcY834f4u+LSgo3xeo4BJng7Z/zNtmcCK/dea4yF1hh9qAIi9IgojhC6fjkwKPhuiMIZ/cBze1MdNtC1RazAeELuJ/bzs72NrJMEU4TtF0iHcjk2HHev75vaOcLVtu/dC0Y7+wIitIgoztyQK5ZykmpJ10LvdYBst194qQjVrE1LnbB/mJ/ThvH5Oy/rTIDBa68YsEIYhwcLxGGZPfZhyL7pBK5sRyE/mhdelJZZhn/eQ9xk+969sEbnvTXzZdQJiHiQX3HTCdYUz/N7PGq+Z9sZQuMRN8M8Bvx/IoZpCHsihmkIi4hhGsIiYphGAH8Bow45DQAun74AAAAASUVORK5CYII='
     },
 
+    {
+        id: 2,
+        image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANEAAAAUCAYAAAATH9joAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAK7SURBVHhe7Zu7juIwFIb/3RdhNaMUFMkrRFop0jSkDDXFlhQ020BJNQ1FJJqRSD1taJAiIfIKNBSjWZEnyeYkdmIgXKNZL+h8ksGX2D4k/n1sA9/SDDAMczPfxTvDMDfCImKYhrCIGKYhLCKGaQiLiGEaoldESYCu1UWQiHQtMUZnrznFqfoN2o5HsCxLBNlGU1uZ/xl61nVoFVGyXMBwDSyWdzbqSPz9Dwzma6zXFN7Ra4ky5qGpE5JGESVYLgw4YwfGYpmlVGhGF7P8KBJ5RIKgK2d/C91yyhceIKi8wyiW+X2E2GDSUa8njpUpfZ/0KgaejglnWdlRtXut7RLFnt0CRhP0LHagL1u1sJ2l3nCVR1dDMxXRHEp7s61MpKbppTJZsUqH5jB7lXEzNWUjeR21rK4+cVh20Lc3S+uqbmde1seu3UV7x+xQudR2Sso+tunMO/Y5mH8BPW81SLR5ovhtAsOx87jtuAgjOcvGiMI2Xn6Kad524BaxgnIvQl7kA39KT9HG4FfRXlFHLbuUmr43C9StNlu992wZ5wP9zJZuoHjSE3ZcbTvZA4TUh9XBZLPB5za/itEMLeMlmkSkDo4s9CkRZblnoEE4fcY834f4u+LSgo3xeo4BJng7Z/zNtmcCK/dea4yF1hh9qAIi9IgojhC6fjkwKPhuiMIZ/cBze1MdNtC1RazAeELuJ/bzs72NrJMEU4TtF0iHcjk2HHev75vaOcLVtu/dC0Y7+wIitIgoztyQK5ZykmpJ10LvdYBst194qQjVrE1LnbB/mJ/ThvH5Oy/rTIDBa68YsEIYhwcLxGGZPfZhyL7pBK5sRyE/mhdelJZZhn/eQ9xk+969sEbnvTXzZdQJiHiQX3HTCdYUz/N7PGq+Z9sZQuMRN8M8Bvx/IoZpCHsihmkIi4hhGsIiYphGAH8Bow45DQAun74AAAAASUVORK5CYII='
+    },
 ]);
 
 const radio1 = ref('1')
+
+// 裁剪
+const isShowModal = ref(false);
+
+const handlingImage = ref('');
+const handlingImageID = ref(0);
+
+const modifyImage = (eventCard) => {
+    console.log('修改图片', eventCard);
+    handlingImage.value = eventCard.image;
+    handlingImageID.value = eventCard.id;
+    isShowModal.value = true;
+    console.log(handlingImage.value);
+};
+
+const clearCropper = () => {
+    cropper.clear();
+};
+
+const resetCropper = () => {
+    cropper.reset();
+};
+
+const getCropperDataURL = () => {
+    const data = cropper.getDataURL();
+    eventCardList.value = eventCardList.value.map((item) => {
+        if (item.id === handlingImageID.value) {
+            item.image = data;
+        }
+        return item;
+    });
+    console.log(data);
+    isShowModal.value = false;
+};
 
 
 
 </script>
 <template>
-    <el-button @click="startRecord">开始录制（F11）</el-button>
     <div v-if="selectedScript">
-        <p>当前选中的脚本是：{{ selectedScript.name }}</p>
-    </div>
-    <div class="eventCards">
-        <div v-for="eventCard in eventCardList" :key="eventCard.id" class="eventCard">
-            <el-col>
-                <el-row :span="12">
-                    <img :src="eventCard.image" alt="" class="button_img" />
-                </el-row>
-                <el-row :span="12">
-                    <el-col :span="12">
-
-                        <el-button>修改</el-button>
-
-                    </el-col>
-                    <el-col :span="12">
-
-                        <el-col :span="12">
-                            {{ eventCard.params.value }}
-                        </el-col>
-                        <el-col :span="12">
-                            <el-radio-group v-model="radio1" class="ml-4">
-                                <el-radio value="1" size="large">使用图片</el-radio>
-                                <el-radio value="2" size="large">使用坐标</el-radio>
-                            </el-radio-group>
-                        </el-col>
-                    </el-col>
-                </el-row>
-            </el-col>
+        <el-button v-if="isRecording" @click="stopRecord">结束录制（F11）</el-button>
+        <el-button v-else @click="startRecord">开始录制（F11）</el-button>
+        <div v-if="selectedScript">
+            <p>当前选中的脚本是：{{ selectedScript.name }}</p>
         </div>
+        <div class="eventCards">
+            <div v-for="eventCard in eventCardList" :key="eventCard.id" class="eventCard">
+                <el-col>
+                    <el-row :span="12" class="eventImage">
+                        <img :src="eventCard.image" alt="" class="button_img" />
+                    </el-row>
+                    <el-row :span="12">
+                        <el-col :span="12">
+                            <el-button @click="modifyImage(eventCard)">修改</el-button>
+                        </el-col>
+                        <el-col :span="12">
+                            <el-row :span="12" class="coordinate">
+                                {{ eventCard.coordinates[0] }} - {{ eventCard.coordinates[1] }}
+                            </el-row>
+                            <el-row :span="12">
+                                <el-radio-group v-model="radio1" class="ml-4">
+                                    <el-radio value="1" size="small">使用图片</el-radio>
+                                    <el-radio value="2" size="small">使用坐标</el-radio>
+                                </el-radio-group>
+                            </el-row>
+                        </el-col>
+                    </el-row>
+                </el-col>
+            </div>
+        </div>
+
+
+        <div class="conditionCards">
+            <div v-for="conditionCard in conditionCardList" :key="conditionCard.id" class="conditionCard">
+                <div class="conditionImageDiv">
+                    <img :src="conditionCard.image" alt="" class="conditionImage" />
+                </div>
+            </div>
+        </div>
+        <el-dialog v-model="isShowModal" title="图片裁剪" width="500" :before-close="handleClose">
+            <el-row :span="5">
+                <el-col :span="5">
+                    <el-button @click="isShowModal = false">取消</el-button>
+                </el-col>
+                <el-col :span="5">
+                    <el-button @click="clearCropper">清除</el-button>
+                </el-col>
+                <el-col :span="5">
+                    <el-button @click="resetCropper">重置</el-button>
+                </el-col>
+                <el-col :span="5">
+                    <el-button type="primary" @click="getCropperDataURL">裁剪</el-button>
+                </el-col>
+            </el-row>
+            <el-row>
+                <VuePictureCropper :boxStyle="{
+                    width: '100%',
+                    height: '100%',
+                    backgroundColor: '#f8f8f8',
+                    margin: 'auto',
+                }" :img="handlingImage" :options="{
+                    viewMode: 1,
+                    dragMode: 'crop',
+                }" @ready="ready" />
+            </el-row>
+        </el-dialog>
     </div>
 
 </template>
 <style>
-.eventCard {
-    margin-top: 20px;
-    padding: 20px;
+.eventCards,
+.conditionCards {
+    display: flex;
+    flex-shrink: 0;
+    overflow-x: auto;
+    padding: 0;
+}
+
+.eventCard,
+.conditionCard {
+    margin: 20px;
     background-color: #f2f2f2;
     border-radius: 4px;
     border: 1px solid #e9e9e9;
-    height: 100px;
-    width: 100px;
+    height: 200px;
+    width: 200px;
+    flex: 0 0 auto;
 }
 
-.eventCards {
+
+.conditionImageDiv {
+    height: 200px;
+    width: 100%;
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+    justify-content: center;
+    align-items: center;
+}
+
+
+.eventImage {
+    height: 100px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 2px dashed #372199;
+
 }
 
 .button_img {
-    width: 100%;
-    height: 100%;
     object-fit: contain;
+    object-position: center;
+    ;
+
+}
+
+.coordinate {
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
 }
 </style>
