@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, defineProps, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed, reactive } from 'vue';
 import VuePictureCropper, { cropper } from 'vue-picture-cropper'
 
 import { invoke } from '@tauri-apps/api';
@@ -31,13 +31,31 @@ let nextId = 1;
 onMounted(() => {
     window.addEventListener('keydown', handleKeydown);
     listen('button-press', (event) => {
-        console.log('录制事件', event.payload);
         const newItem = {
             ...event.payload,
-            id: nextId++,
+            id: nextId,
+            nextStep: 'step' + (nextId + 1),
         }
-        eventCardList.value.push(newItem);
+        // eventCardList.value.push(newItem);
+        eventCardDict.value['step' + nextId] = newItem;
+        nextId++;
+        console.log('收到按钮事件', eventCardDict.value);
     });
+});
+
+
+const currentStep = ref(1);
+
+const eventCardDict = ref({});
+const displayedSteps = computed(() => {
+    let steps = [];
+    let i = 1;
+    while (eventCardDict.value[`step${i}`]) {
+        steps.push(eventCardDict.value[`step${i}`]);
+        i++;
+    }
+    console.log('显示的步骤', steps);
+    return steps;
 });
 
 
@@ -46,8 +64,9 @@ onUnmounted(() => {
 });
 
 // 事件卡片
-const eventCardList = ref([
-]);
+// const eventCardList = ref([
+// ]);
+
 
 const conditionCardList = ref([
     {
@@ -108,7 +127,7 @@ const getCropperDataURL = () => {
             <p>当前选中的脚本是：{{ selectedScript.name }}</p>
         </div>
         <div class="eventCards">
-            <div v-for="eventCard in eventCardList" :key="eventCard.id" class="eventCard">
+            <div v-for="eventCard in displayedSteps" class="eventCard">
                 <el-col>
                     <el-row :span="12" class="eventImage">
                         <img :src="eventCard.image" alt="" class="button_img" />
